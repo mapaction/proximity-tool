@@ -24,14 +24,11 @@ set_doc_page_style()
 # Page title
 st.markdown("# Documentation")
 
-# First section
+# Methodology section
 st.markdown("## Methodology")
 
-# Second section
-st.markdown("## Radar imagery for flood detection")
-
-# Third section
+# Limitation section
 st.markdown("## Key limitations")
 
-# Last section
+# Link section
 st.markdown("## Useful links")
