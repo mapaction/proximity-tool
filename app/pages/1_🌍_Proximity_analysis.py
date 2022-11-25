@@ -34,7 +34,7 @@ add_logo("app/img/MA-logo.png")
 add_about()
 
 # Page title
-st.markdown("# Tool title")
+st.markdown("# Proximity analysis")
 
 # Set page style
 set_tool_page_style()
