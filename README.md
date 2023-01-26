@@ -12,7 +12,7 @@
 
 #### Requirements
 
-The Python version currently used is 3.10. Please install all packages from:
+The Python version currently used is 3.10. Please install all packages from
 ``requirements.txt``:
 
 ```shell
