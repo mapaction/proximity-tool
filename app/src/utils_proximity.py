@@ -2,12 +2,14 @@
 import time
 from itertools import islice
 from timeit import default_timer
+import typing
 
 import geopandas as gpd
 import pandas as pd
 from geojson.geometry import Polygon
 from openrouteservice import client
 
+# TODO: let the user select this. Some choices depend on previous choices
 params_iso = {
     "profile": "driving-car",
     "range": [900, 1800, 2700, 3600],  # 900/60 = 15 minutes,
@@ -15,8 +17,13 @@ params_iso = {
     "attributes": ["total_pop"],  # Get pop count for isochrones
 }
 
+# TODO: create method for this, and change other functions accordingly
 api_key = "5b3ce3597851110001cf6248f721ae98b34c4504a7d7d29fb9847568"
 ors = client.Client(key=api_key)
+
+def check_label_poi(poi_gdata, label_col):
+    label = poi_gdata[label_col].tolist()[0]
+    return isinstance(label, typing.Hashable)
 
 
 def prep_user_poi(poi_gdata, label_col):
@@ -41,7 +48,7 @@ def prep_user_poi(poi_gdata, label_col):
 def chunks(data, chunksize):
     """Add docstrings here."""
     it = iter(data)
-    for _ in range(start=0, stop=len(data), step=chunksize):
+    for _ in range(0, len(data), chunksize):
         yield {k: data[k] for k in islice(it, chunksize)}
 
 
