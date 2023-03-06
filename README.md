@@ -5,14 +5,14 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
 
-### [tool under development]
+### Tool under development
 
 
 ## Usage
 
 #### Requirements
 
-The Python version currently used is 3.10. Please install all packages from
+The Python version currently used is 3.9. Please install all packages from
 ``requirements.txt``:
 
 ```shell
@@ -20,6 +20,15 @@ pip install -r requirements.txt
 ```
 
 #### Run the app
+
+This tool uses the [openrouteservice](https://api.openrouteservice.org/) public API.
+Before running the app, create a file called `.env` in the main folder and add the line
+
+```python
+API_KEY = <your_api_key>
+```
+
+Replace `<your_api_key>` with your API key in quotes. To obtain one, create an account on [their website](https://openrouteservice.org/dev/#/signup).
 
 Finally, open a terminal and run
 
