@@ -344,8 +344,8 @@ def prep_user_poi(poi_gdata, label_col):
     xcoords = poi_gdata.geometry.x
     ycoords = poi_gdata.geometry.y
 
-    for lab, x, y in zip(label, xcoords, ycoords):
-        start_points[lab] = {"location": [x, y]}
+    for i, (lab, x, y) in enumerate(zip(label, xcoords, ycoords)):
+        start_points[i] = {"label": lab, "location": [x, y]}
     return start_points, centre_list
 
 
@@ -416,7 +416,7 @@ def get_isochrones(start_points, ors, mock_function=False):
     )
 
     for item in chunks(start_points, 5):
-        for name, start_pt in item.items():
+        for start_pt in item.values():
             # Add coords to request parameters
             params_iso["locations"] = [start_pt["location"]]
             # Perform isochrone request
@@ -430,7 +430,7 @@ def get_isochrones(start_points, ors, mock_function=False):
             gdf["geometry"] = gdf["geometry.coordinates"].apply(
                 lambda p: Polygon(p)
             )
-            gdf["name"] = name
+            gdf["name"] = start_pt["label"]
             gdf = gdf.set_crs(epsg=4326)
             # append this response to the dataframe
             all_isos = gpd.GeoDataFrame(
