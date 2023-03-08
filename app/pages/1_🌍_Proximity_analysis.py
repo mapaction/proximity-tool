@@ -7,9 +7,12 @@ from src.utils import (
     set_tool_page_style,
     toggle_menu_button,
 )
-from src.utils_proximity import (
+from src.utils_plotting import (
     folium_static_with_legend,
     plot_isochrones,
+    plot_population_summary,
+)
+from src.utils_proximity import (
     poi_v_aoi,
     process_aoi_data,
     process_poi_data,
@@ -35,10 +38,15 @@ set_tool_page_style()
 # Parameters
 verbose = True
 use_default_data = True
+use_local_pop_data = True
 
 # If using default data, print
 if use_default_data:
     st.info("Using default data, no API call will be made.")
+
+# If using local tiff data, print
+if use_local_pop_data:
+    st.info("Using local tiff data, no WorldPop API will be used.")
 
 # Set initial stage to 0
 if "stage" not in st.session_state:
@@ -125,11 +133,18 @@ if st.session_state.stage > 1:
         st.write(
             "If you are happy to proceed, select the column of the POI "
             "dataset that defines the names of the locations: this "
-            "information will be used when plotting the isochrones. "
-            "Then click on the button below."
+            "information will be used when plotting the isochrones. Also, "
+            "tick the box if you want to include population data in the "
+            "analysis. "
+            "Finally click on the button 'Ready to run?'."
         )
         poi_name_col = st.selectbox(
             "Select the label field in your POI dataset", in_poi_flds
+        )
+        add_pop_data = st.checkbox(
+            "Add population data to the analysis",
+            on_change=set_stage,
+            args=(2,),
         )
         st.success("You are ready to create the isochrones.")
         st.button("Ready to run?", on_click=set_stage, args=(3,))
@@ -143,6 +158,8 @@ if st.session_state.stage > 2:
             poi_name_col=poi_name_col,
             aoi_gdf=aoi_gdf,
             use_default_data=use_default_data,
+            add_pop_data=add_pop_data,
+            use_local_pop_data=use_local_pop_data,
             verbose=verbose,
             text_on_streamlit=True,
         )
@@ -151,8 +168,10 @@ if st.session_state.stage > 2:
         map1 = plot_isochrones(
             gdf=isochrones, poi_gdf=poi_gdf, poi_name_col=poi_name_col
         )
-        # folium_static(map1)
         folium_static_with_legend(map1, isochrones, "Travel time")
+        if add_pop_data:
+            fig = plot_population_summary(isochrones)
+            st.pyplot(fig)
         st.success("Computation complete")
 
     st.button("Reset", on_click=set_stage, args=(0,))
