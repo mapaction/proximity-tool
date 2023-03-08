@@ -136,3 +136,7 @@ dmypy.json
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Tiff files
+*.tiff
+*.tif
