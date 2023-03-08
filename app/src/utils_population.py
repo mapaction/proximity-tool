@@ -1,4 +1,7 @@
 """Functions for population data."""
+import os
+import urllib.request
+
 import geopandas as gpd
 import numpy as np
 import rasterio
@@ -71,7 +74,7 @@ def find_intersections_gdf(gdf):
 
 def find_worldpop_iso3_tif(iso3, use_local_tif=False):
     """
-    Return the URL of the WorldPop population raster file for a given ISO3.
+    Return the filename of the WorldPop raster file for a given ISO3.
 
     Inputs:
     -------
@@ -81,20 +84,22 @@ def find_worldpop_iso3_tif(iso3, use_local_tif=False):
 
     Returns:
     --------
-    tif_url (str): URL of the GeoTIFF file containing the population density
-        data for the given country. if use_local_tif is True, return the local
-        path of the GeoTIFF file.
+    filename (str): filename of the GeoTIFF file containing the population
+        density data for the given country. if use_local_tif is True,
+        return the local path of the GeoTIFF file.
     """
     if use_local_tif:
-        tif_url = f"/home/daniele/Downloads/{iso3.lower()}_ppp_2020.tif"
+        filename = f"/home/daniele/Downloads/{iso3.lower()}_ppp_2020.tif"
     else:
         api_url = f"https://www.worldpop.org/rest/data/pop/wpgp?iso3={iso3}"
         response = requests.get(api_url).json()["data"]
-        tif_url = (
-            "/vsicurl_streaming/"
-            + [r["files"][0] for r in response if int(r["popyear"]) == 2020][0]
-        )
-    return tif_url
+        tif_url = [
+            r["files"][0] for r in response if int(r["popyear"]) == 2020
+        ][0]
+        filename = tif_url.split("/")[-1]
+        if not os.path.isfile(filename):
+            urllib.request.urlretrieve(tif_url, filename)
+    return filename
 
 
 def aggregate_raster_on_geometries(raster_file, geometry_list, stats="sum"):

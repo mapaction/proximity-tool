@@ -38,7 +38,7 @@ set_tool_page_style()
 # Parameters
 verbose = True
 use_default_data = True
-use_local_pop_data = True
+use_local_pop_data = False
 
 # If using default data, print
 if use_default_data:

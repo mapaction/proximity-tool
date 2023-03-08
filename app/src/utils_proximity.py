@@ -239,7 +239,7 @@ def run_analysis(
     # Add population data
     if add_pop_data:
         mock_st_text(
-            "Aggregate population data...",
+            "Aggregating population data...",
             verbose=verbose,
             text_on_streamlit=text_on_streamlit,
         )
