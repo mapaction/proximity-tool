@@ -3,6 +3,7 @@ import time
 import typing
 from itertools import islice
 from timeit import default_timer
+from typing import Dict, Generator, List, Tuple, Union
 
 import fiona
 import geopandas as gpd
@@ -24,7 +25,7 @@ params_iso = {
 save_to_file = False
 
 
-def create_poi_gpd(in_poi_file):
+def create_poi_gpd(in_poi_file: str) -> gpd.GeoDataFrame:
     """Read a point-of-interest GeoJSON file and returns a GeoDataFrame.
 
     Inputs
@@ -40,7 +41,7 @@ def create_poi_gpd(in_poi_file):
     return in_poi_gdf
 
 
-def check_poi_geometry(poi_gdf):
+def check_poi_geometry(poi_gdf: gpd.GeoDataFrame) -> bool:
     """Check whether all geometries are points.
 
     Inputs
@@ -54,7 +55,7 @@ def check_poi_geometry(poi_gdf):
     return all([geom == "Point" for geom in poi_gdf.geom_type.tolist()])
 
 
-def create_aoi_gpd(in_aoi_file):
+def create_aoi_gpd(in_aoi_file: str) -> gpd.GeoDataFrame:
     """Read an area-of-interest GeoJSON file and returns a GeoDataFrame.
 
     Inputs
@@ -70,7 +71,7 @@ def create_aoi_gpd(in_aoi_file):
     return in_aoi_gdf
 
 
-def check_aoi_geometry(aoi_gdf):
+def check_aoi_geometry(aoi_gdf: gpd.GeoDataFrame) -> bool:
     """Check whether all geometries are polygons.
 
     Inputs
@@ -85,7 +86,7 @@ def check_aoi_geometry(aoi_gdf):
 
 
 # get field names in user uploaded POI dataset
-def get_poi_flds(poi_gdf):
+def get_poi_flds(poi_gdf: gpd.GeoDataFrame) -> Union[List[str], str]:
     """Return the list of field names in the point-of-interest GeoDataFrame.
 
     Inputs
@@ -103,7 +104,9 @@ def get_poi_flds(poi_gdf):
 
 
 # # check number of POI inside and outside of AOI
-def poi_v_aoi(aoi_gdata, poi_gdata):
+def poi_v_aoi(
+    aoi_gdata: gpd.GeoDataFrame, poi_gdata: gpd.GeoDataFrame
+) -> Tuple[int, int]:
     """
     Return the numbers of POIs within and outside of the AOI.
 
@@ -126,15 +129,16 @@ def poi_v_aoi(aoi_gdata, poi_gdata):
 
 
 def run_analysis(
-    poi_gdf,
-    poi_name_col,
-    aoi_gdf,
-    use_default_data,
-    add_pop_data,
-    use_local_pop_data,
-    verbose=False,
-    text_on_streamlit=True,
-):
+    poi_gdf: gpd.GeoDataFrame,
+    poi_name_col: str,
+    aoi_gdf: gpd.GeoDataFrame,
+    use_default_data: bool,
+    add_pop_data: bool,
+    use_local_pop_data: bool,
+    pop_folder: str = "app/test_data/pop_data",
+    verbose: bool = False,
+    text_on_streamlit: bool = True,
+) -> gpd.GeoDataFrame:
     """
     Run the whole analysis, and find isochrones.
 
@@ -145,10 +149,10 @@ def run_analysis(
 
     Inputs
     ----------
-    poi_gdf (geopandas.geodataframe.GeoDataFrame): Geodataframe containing
+    poi_gdf (geopandas.GeoDataFrame): Geodataframe containing
         points of interest
     poi_name_col (str): Name of the column containing POI names
-    aoi_gdf (geopandas.geodataframe.GeoDataFrame): Geodataframe containing the
+    aoi_gdf (geopandas.GeoDataFrame): Geodataframe containing the
         area of interest
     use_default_data (bool): if True, load the isochrones from file
         instead of using the OpenRouteServiec API.
@@ -244,7 +248,7 @@ def run_analysis(
             text_on_streamlit=text_on_streamlit,
         )
         diff_isoc = add_population_data(
-            diff_isoc, use_local_tif=use_local_pop_data
+            diff_isoc, tif_folder=pop_folder, use_local_tif=use_local_pop_data
         )
         mock_st_text(
             "Create population summary...",
@@ -268,7 +272,7 @@ def run_analysis(
     return diff_isoc
 
 
-def mock_st_text(text, verbose, text_on_streamlit):
+def mock_st_text(text: str, verbose: bool, text_on_streamlit: bool) -> None:
     """
     Return streamlit text using a given text object.
 
@@ -294,7 +298,7 @@ def mock_st_text(text, verbose, text_on_streamlit):
         print(text)
 
 
-def check_label_poi(poi_gdata, label_col):
+def check_label_poi(poi_gdata: gpd.GeoDataFrame, label_col: str) -> bool:
     """
     Check if the labels in a GeoDataFrame's specified column are hashable.
 
@@ -313,7 +317,9 @@ def check_label_poi(poi_gdata, label_col):
     return isinstance(label, typing.Hashable)
 
 
-def prep_user_poi(poi_gdata, label_col):
+def prep_user_poi(
+    poi_gdata: gpd.GeoDataFrame, label_col: str
+) -> Tuple[Dict, List]:
     """
     Prepare start points and map centre for POIs provided in a GeoDataFrame.
 
@@ -344,7 +350,7 @@ def prep_user_poi(poi_gdata, label_col):
     return start_points, centre_list
 
 
-def chunks(data, chunksize):
+def chunks(data: Dict, chunksize: int) -> Generator:
     """
     Split a dictionary into chunks of a given size.
 
@@ -367,7 +373,9 @@ def chunks(data, chunksize):
         yield {k: data[k] for k in islice(it, chunksize)}
 
 
-def get_isochrones(start_points, ors, mock_function=False):
+def get_isochrones(
+    start_points: Dict, ors, mock_function: bool = False
+) -> Tuple[gpd.GeoDataFrame, float]:
     """
     Perform an isochrone search using OpenRouteService API.
 
@@ -449,7 +457,7 @@ def get_isochrones(start_points, ors, mock_function=False):
     return all_isos, api_time
 
 
-def dissolve_iso(isos):
+def dissolve_iso(isos: gpd.GeoDataFrame) -> Tuple[gpd.GeoDataFrame, float]:
     """
     Dissolve isochrones by value.
 
@@ -475,7 +483,9 @@ def dissolve_iso(isos):
     return diss_isoc, diss_time
 
 
-def difference_iso(diss_isoc):
+def difference_iso(
+    diss_isoc: gpd.GeoDataFrame,
+) -> Tuple[gpd.GeoDataFrame, float]:
     """
     Compute difference between consecutive isochrones.
 
@@ -521,7 +531,11 @@ def difference_iso(diss_isoc):
     return diff_isoc, diff_time
 
 
-def fill_aoi(diff_isoc, diss_isoc, aoi):
+def fill_aoi(
+    diff_isoc: gpd.GeoDataFrame,
+    diss_isoc: gpd.GeoDataFrame,
+    aoi: gpd.GeoDataFrame,
+) -> Tuple[gpd.GeoDataFrame, float]:
     """
     Fill the space between isochrones and AOI.
 
@@ -564,7 +578,9 @@ def fill_aoi(diff_isoc, diss_isoc, aoi):
     return filled_to_aoi, fill_time
 
 
-def process_poi_data(upload_poi_file):
+def process_poi_data(
+    upload_poi_file,
+) -> Tuple[gpd.GeoDataFrame, Union[List[str], str], bool]:
     """Process point of interest (POI) data uploaded by the user.
 
     Inputs
@@ -584,7 +600,7 @@ def process_poi_data(upload_poi_file):
     return poi_gdf, in_poi_flds, valid_geom
 
 
-def process_aoi_data(upload_aoi_file):
+def process_aoi_data(upload_aoi_file) -> Tuple[gpd.GeoDataFrame, bool]:
     """Process area of interest (AOI) data uploaded by the user.
 
     Inputs

@@ -1,15 +1,20 @@
 """Functions for population data."""
 import os
 import urllib.request
+from ftplib import FTP
+from typing import Dict, List, Optional, Tuple, Union
 
 import geopandas as gpd
 import numpy as np
 import rasterio
 import requests
+import shapely
 from rasterstats import zonal_stats
 
 
-def find_intersections_polygon(pol):
+def find_intersections_polygon(
+    pol: shapely.Polygon,
+) -> Tuple[List[str], List[shapely.Polygon]]:
     """
     Find the intersections between a Polygon object and country borders.
 
@@ -43,7 +48,7 @@ def find_intersections_polygon(pol):
     return iso3_list, country_intersect_list
 
 
-def find_intersections_gdf(gdf):
+def find_intersections_gdf(gdf: gpd.GeoDataFrame) -> Tuple[Dict, List[str]]:
     """
     Find the intersections between polygons in a dataframe and country borders.
 
@@ -72,37 +77,198 @@ def find_intersections_gdf(gdf):
     return intersect_dict, all_iso3_list
 
 
-def find_worldpop_iso3_tif(iso3, use_local_tif=False):
+def download_worldpop_iso_tif(
+    iso3: str,
+    tif_folder: str,
+    method: str = "http",
+    year: int = 2020,
+    data_type: str = "UNadj_constrained",
+    clobber: bool = False,
+    use_local_tif: bool = False,
+) -> str:
     """
-    Return the filename of the WorldPop raster file for a given ISO3.
+    Download WorldPop raster data for given parameters.
 
     Inputs:
     -------
     iso3 (str): ISO3 country code.
-    use_local_tif (bool, optional): If True, uses a local GeoTIFF file instead
+    tif_folder (str): folder name, where download raster data are saved.
+    method (str, optional): download method (http API or ftp service).
+        ['http' | 'ftp']. Default to 'http'.
+    year (int, optional): year of population data. Default to 2020.
+    data_type (str, optional): type of population estimate.
+        ['unconstrained'| 'constrained' | 'UNadj_constrained']. Default to
+        'UNadj_constrained'.
+    clobber (bool, optional): if True, overwrite data, if False do not
+        download data if already present in the folder. Default to False.
+    use_local_tif (bool, optional): if True, uses a local GeoTIFF file instead
         of downloading it from the WorldPop API. Default to False.
 
     Returns:
     --------
     filename (str): filename of the GeoTIFF file containing the population
-        density data for the given country. if use_local_tif is True,
+        density data for the given parameters. if use_local_tif is True,
         return the local path of the GeoTIFF file.
     """
+    allowed_method = ["http", "ftp"]
+    if method not in allowed_method:
+        raise ValueError(
+            "method should be one of the options: " + ", ".join(allowed_method)
+        )
+
+    allowed_data_type = ["unconstrained", "constrained", "UNadj_constrained"]
+    if data_type not in allowed_data_type:
+        raise ValueError(
+            "data_type should be one of the options: "
+            + ", ".join(allowed_data_type)
+        )
+
+    filename = f"{tif_folder}/{iso3.lower()}_{year}_{data_type}.tif"
+
     if use_local_tif:
-        filename = f"/home/daniele/Downloads/{iso3.lower()}_ppp_2020.tif"
+        return f"{tif_folder}/{iso3.lower()}_2020_UNadj_constrained.tif"
+
+    if method == "http":
+        return download_worldpop_iso3_tif_http(
+            iso3,
+            year=year,
+            data_type=data_type,
+            filename=filename,
+            clobber=clobber,
+        )
     else:
-        api_url = f"https://www.worldpop.org/rest/data/pop/wpgp?iso3={iso3}"
-        response = requests.get(api_url).json()["data"]
-        tif_url = [
-            r["files"][0] for r in response if int(r["popyear"]) == 2020
-        ][0]
+        return download_worldpop_iso3_tif_ftp(
+            iso3,
+            year=year,
+            data_type=data_type,
+            filename=filename,
+            clobber=clobber,
+        )
+
+
+def download_worldpop_iso3_tif_http(
+    iso3: str,
+    data_type: str = "UNadj_constrained",
+    filename: Optional[str] = None,
+    year: int = 2020,
+    clobber: bool = False,
+) -> str:
+    """
+    Download WorldPop raster data for given parameters, using the API via http.
+
+    Inputs:
+    -------
+    iso3 (str): ISO3 country code.
+    data_type (str, optional): type of population estimate.
+        ['unconstrained'| 'constrained' | 'UNadj_constrained']. Default to
+        'UNadj_constrained'.
+    filename (str, optional): filename of the downloaded raster file.
+    year (int, optional): year of population data. Default to 2020.
+    clobber (bool, optional): if True, overwrite data, if False do not
+        download data if already present in the folder. Default to False.
+
+    Returns:
+    --------
+    filename (str): filename of the GeoTIFF file containing the population
+        density data for the given parameters.
+    """
+    if data_type == "unconstrained":
+        api_suffix = "wpgp"
+    elif data_type == "constrained":
+        api_suffix = f"cic{year}_100m"
+    else:
+        api_suffix = f"cic{year}_UNadj_100m"
+
+    api_url = (
+        f"https://hub.worldpop.org/rest/data/pop/" f"{api_suffix}?iso3={iso3}"
+    )
+
+    response = requests.get(api_url)
+    tif_url = response.json()["data"][0]["files"][0]
+
+    if filename is None:
         filename = tif_url.split("/")[-1]
-        if not os.path.isfile(filename):
-            urllib.request.urlretrieve(tif_url, filename)
+
+    if clobber:
+        condition_to_download = True
+    else:
+        condition_to_download = not os.path.isfile(filename)
+
+    if condition_to_download:
+        urllib.request.urlretrieve(tif_url, filename)
     return filename
 
 
-def aggregate_raster_on_geometries(raster_file, geometry_list, stats="sum"):
+def download_worldpop_iso3_tif_ftp(
+    iso3: str,
+    data_type: str = "UNadj_constrained",
+    filename: Optional[str] = None,
+    year: int = 2020,
+    clobber: bool = False,
+) -> str:
+    """
+    Download WorldPop raster data for given parameters, using the ftp service.
+
+    Inputs:
+    -------
+    iso3 (str): ISO3 country code.
+    data_type (str, optional): type of population estimate.
+        ['unconstrained'| 'constrained' | 'UNadj_constrained']. Default to
+        'UNadj_constrained'.
+    filename (str, optional): filename of the downloaded raster file.
+    year (int, optional): year of population data. Default to 2020.
+    clobber (bool, optional): if True, overwrite data, if False do not
+        download data if already present in the folder. Default to False.
+
+    Returns:
+    --------
+    filename (str): filename of the GeoTIFF file containing the population
+        density data for the given parameters.
+    """
+    ftp = FTP("ftp.worldpop.org.uk")
+    ftp.login()
+
+    folder_base = "/GIS/Population/Global_2000_2020"
+
+    if data_type == "unconstrained":
+        file_suffix = ""
+        folder = f"{folder_base}/{year}/{iso3}/"
+    else:
+        file_suffix = f"_{data_type}"
+        folder_base = f"{folder_base}_Constrained/{year}/"
+        ftp_sources = ["maxar_v1/", "BSGM/"]
+        for source in ftp_sources:
+            ftp.cwd(f"{folder_base}/{source}")
+            if iso3 in ftp.nlst():
+                break
+        folder = f"{folder_base}/{source}{iso3}/"
+
+    file = f"{iso3.lower()}_ppp_{year}{file_suffix}.tif"
+
+    ftp.cwd(folder)
+
+    if filename is None:
+        filename = file
+
+    if clobber:
+        condition_to_download = True
+    else:
+        condition_to_download = not os.path.isfile(filename)
+
+    if condition_to_download:
+        with open(filename, "wb") as file_out:
+            ftp.retrbinary(f"RETR {file}", file_out.write)
+
+    ftp.quit()
+
+    return filename
+
+
+def aggregate_raster_on_geometries(
+    raster_file: str,
+    geometry_list: List[shapely.Geometry],
+    stats: Union[str, List[str]] = "sum",
+) -> List:
     """
     Compute zonal statistics of a raster file over a list of vector geometries.
 
@@ -132,7 +298,12 @@ def aggregate_raster_on_geometries(raster_file, geometry_list, stats="sum"):
     return zonal_stats(geometry_list, array, affine=affine, stats=stats)
 
 
-def add_population_data(gdf, use_local_tif=False):
+def add_population_data(
+    gdf: gpd.GeoDataFrame,
+    tif_folder: str = "app/test_data/pop_data",
+    use_local_tif: bool = False,
+    clobber: bool = False,
+) -> gpd.GeoDataFrame:
     """
     Add population data to a GeoDataFrame by aggregating WorldPop data.
 
@@ -157,6 +328,9 @@ def add_population_data(gdf, use_local_tif=False):
     pop_total_dict = {}
     intersect_dict, all_iso3_list = find_intersections_gdf(gdf)
 
+    if not os.path.exists(tif_folder):
+        os.makedirs(tif_folder)
+
     for i in range(len(all_iso3_list)):
         iso3 = all_iso3_list[i]
         iso3_list_indexes = [
@@ -168,7 +342,12 @@ def add_population_data(gdf, use_local_tif=False):
             if iso3 in value.keys()
         ]
 
-        raster_file = find_worldpop_iso3_tif(iso3, use_local_tif=use_local_tif)
+        raster_file = download_worldpop_iso_tif(
+            iso3,
+            tif_folder=tif_folder,
+            use_local_tif=use_local_tif,
+            clobber=clobber,
+        )
 
         pop_iso3_agg = aggregate_raster_on_geometries(
             raster_file, iso3_list_geometries

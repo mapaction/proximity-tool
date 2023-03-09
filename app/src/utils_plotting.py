@@ -1,4 +1,6 @@
 """Functions for plotting."""
+from typing import List, Optional, Union
+
 import branca
 import folium
 import geopandas as gpd
@@ -8,7 +10,7 @@ import streamlit.components.v1 as components
 from folium.plugins import Draw, Geocoder, MiniMap
 
 
-def color_list_from_cmap(cmap_name, n):
+def color_list_from_cmap(cmap_name: str, n: int) -> Union[List[str], str]:
     """
     Generate a list of n colors from a specified color map.
 
@@ -31,12 +33,12 @@ def color_list_from_cmap(cmap_name, n):
 
 def folium_static_with_legend(
     fig,
-    gdf,
-    legend_title,
-    cmap_name="viridis",
-    width=700,
-    height=500,
-):
+    gdf: gpd.GeoDataFrame,
+    legend_title: str,
+    cmap_name: str = "viridis",
+    width: int = 700,
+    height: int = 500,
+) -> None:
     """
     Create a HTML representation of a Folium map with a categorical legend.
 
@@ -56,11 +58,6 @@ def folium_static_with_legend(
         Defaults to 700.
     height (int, optional): height of the HTML representation, in pixels.
         Defaults to 500.
-
-    Returns
-    -------
-    output (str) the HTML representation of the Folium map, with the
-        categorical legend.
     """
     # if Map, wrap in Figure
     if isinstance(fig, folium.Map):
@@ -81,7 +78,12 @@ def folium_static_with_legend(
         )
 
 
-def add_categorical_legend(folium_map, title, gdf, cmap_name="viridis"):
+def add_categorical_legend(
+    folium_map: folium.Map,
+    title: str,
+    gdf: gpd.GeoDataFrame,
+    cmap_name: str = "viridis",
+) -> folium.Map:
     """
     Add a categorical legend to a Folium map.
 
@@ -146,17 +148,17 @@ def add_categorical_legend(folium_map, title, gdf, cmap_name="viridis"):
 
 
 def plot_isochrones(
-    gdf,
-    poi_gdf,
-    poi_name_col,
-    cmap_name="viridis",
-    isochrones_title="Travel time",
-    add_countryborders=False,
-    add_legend=False,
-    custom_legend_title=None,
-    add_tooltip=True,
-    custom_tooltip_title=None,
-):
+    gdf: gpd.GeoDataFrame,
+    poi_gdf: gpd.GeoDataFrame,
+    poi_name_col: str,
+    cmap_name: str = "viridis",
+    isochrones_title: str = "Travel time",
+    add_countryborders: bool = False,
+    add_legend: bool = False,
+    custom_legend_title: Optional[str] = None,
+    add_tooltip: bool = True,
+    custom_tooltip_title: Optional[str] = None,
+) -> folium.Map:
     """
     Plot isochrones on a Folium map.
 
@@ -251,23 +253,23 @@ def plot_isochrones(
     return m
 
 
-def add_pois_to_map(m, poi_gdf, poi_name_col):
+def add_pois_to_map(
+    m: folium.Map, poi_gdf: gpd.GeoDataFrame, poi_name_col: str
+) -> folium.Map:
     """
     Add points of interest (POIs) to a Folium map.
 
     Parameters
     ----------
-    m : folium.Map
-        The Folium map to which the POIs will be added.
-    poi_gdf : geopandas.GeoDataFrame
-        The GeoDataFrame containing the POIs as point geometries.
-    poi_name_col : str
-        The name of the column in poi_gdf containing the names of the POIs.
+    m (folium.Map): the Folium map to which the POIs will be added.
+    poi_gdf (geopandas.GeoDataFrame): the GeoDataFrame containing the POIs as
+        point geometries.
+    poi_name_col (str): the name of the column in poi_gdf containing the names
+        of the POIs.
 
     Returns
     -------
-    m : folium.Map
-        The Folium map with the POIs added.
+    m (folium.Map): the Folium map with the POIs added.
     """
     for i in range(len(poi_gdf)):
         folium.Marker(
@@ -280,7 +282,7 @@ def add_pois_to_map(m, poi_gdf, poi_name_col):
     return m
 
 
-def create_input_map():
+def create_input_map() -> folium.Map:
     """
     Create a Folium map with drawing tools, search bar, and minimap.
 
@@ -315,7 +317,11 @@ def create_input_map():
 
 
 def plot_population_summary(
-    gdf, figsize=(10, 6), cmap_name="viridis", labelpad=10, fontsize=16
+    gdf: gpd.GeoDataFrame,
+    figsize: tuple = (10, 6),
+    cmap_name: str = "viridis",
+    labelpad: int = 10,
+    fontsize: int = 16,
 ):
     """
     Plot a horizontal bar chart of total population by travel time.
