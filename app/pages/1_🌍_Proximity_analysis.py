@@ -1,5 +1,4 @@
 """Proximity analysis page for Streamlit app."""
-import folium
 import streamlit as st
 from src.config_parameters import params
 from src.utils import (
@@ -8,20 +7,17 @@ from src.utils import (
     set_tool_page_style,
     toggle_menu_button,
 )
+from src.utils_plotting import (
+    folium_static_with_legend,
+    plot_isochrones,
+    plot_population_summary,
+)
 from src.utils_proximity import (
-    difference_iso,
-    dissolve_iso,
-    fill_aoi,
-    get_isochrones,
-    prep_user_poi,
-)
-from src.utils_user_input import (
-    create_aoi_gpd,
-    create_poi_gpd,
-    get_poi_flds,
     poi_v_aoi,
+    process_aoi_data,
+    process_poi_data,
+    run_analysis,
 )
-from streamlit_folium import folium_static
 
 # Page configuration
 st.set_page_config(layout="wide", page_title=params["browser_title"])
@@ -39,124 +35,143 @@ st.markdown("# Proximity analysis")
 # Set page style
 set_tool_page_style()
 
+# Parameters
+verbose = True
+use_default_data = True
+use_local_pop_data = False
+
+# If using default data, print
+if use_default_data:
+    st.info("Using default data, no API call will be made.")
+
+# If using local tiff data, print
+if use_local_pop_data:
+    st.info("Using local tiff data, no WorldPop API will be used.")
+
+# Set initial stage to 0
+if "stage" not in st.session_state:
+    st.session_state.stage = 0
+
+
+# Define function to change stage
+def set_stage(stage):
+    """
+    Set stage for the app.
+
+    Each time a certain button is pressed, the stage progresses by one.
+    """
+    st.session_state.stage = stage
+
+
 # Create file uploader object for POIs
 upload_poi_file = st.file_uploader(
-    "Upload a zipped shapefile containing your POIs", type=["zip"]
+    "Upload a zipped shapefile containing your POIs",
+    type=["zip"],
+    on_change=set_stage,
+    args=(1,),
 )
 
-upload_aoi_file = ""  # stops warning at run time TO DO: handle this better
-if st.checkbox("Fill gaps using an Area of Interest file?"):
-    # Create file uploader object for AOI
-    upload_aoi_file = st.file_uploader(
-        "Upload a zipped shapefile delineating your Area of Interest",
-        type=["zip"],
-    )
-
-if upload_poi_file:
-    poi_gdf = create_poi_gpd(upload_poi_file)
-    in_poi_flds = get_poi_flds(poi_gdf)
-    poi_name_col = st.selectbox(
-        "Select the label field in your POI dataset", in_poi_flds
-    )
-
-if upload_aoi_file:
-    aoi_gdf = create_aoi_gpd(upload_aoi_file)
-
-if st.button("Check input data?"):
-    if upload_aoi_file:
-        poi_within_aoi, poi_outside_aoi = poi_v_aoi(aoi_gdf, poi_gdf)
-        st.write(
-            """
-            There are %s points inside the AOI, and %s outside.
-            If you are happy to proceed click Ready to Run button
-
-            """
-            % (poi_within_aoi, poi_outside_aoi)
+# Add AOI
+if st.session_state.stage > 0:
+    aoi_gdf = None
+    upload_aoi_file = ""
+    if st.checkbox(
+        "Fill gaps using an Area of Interest file?",
+        on_change=set_stage,
+        args=(1,),
+    ):
+        # Create file uploader object for AOI
+        upload_aoi_file = st.file_uploader(
+            "Upload a zipped shapefile delineating your Area of Interest",
+            type=["zip"],
+            on_change=set_stage,
+            args=(1,),
         )
+    st.button("Check input data?", on_click=set_stage, args=(2,))
+
+# Check inpu data
+if st.session_state.stage > 1:
+    try:
+        poi_gdf, in_poi_flds, valid_geom = process_poi_data(upload_poi_file)
+        if not valid_geom:
+            st.error(
+                "The POI shapefile contains geometries that are not "
+                "points. Check the source data."
+            )
+            st.stop()
+
+    except Exception:
+        st.error(
+            "Error with importing the POI shapefile. Check the source data."
+        )
+        st.stop()
     else:
-        st.write("No AOI dataset uploaded yet")
+        if upload_aoi_file:
+            try:
+                aoi_gdf, valid_geom = process_aoi_data(upload_aoi_file)
+                if not valid_geom:
+                    st.error(
+                        "The AOI shapefile contains geometries that are not "
+                        "polygons. Check the source data."
+                    )
+                    st.stop()
+                poi_within_aoi, poi_outside_aoi = poi_v_aoi(aoi_gdf, poi_gdf)
+                st.write(
+                    """
+                    There are %s points inside the AOI, and %s outside.
+                    """
+                    % (poi_within_aoi, poi_outside_aoi)
+                )
+            except Exception:
+                st.error(
+                    "Error with importing the AOI shapefile. Check the source "
+                    "data."
+                )
+                st.stop()
+        else:
+            st.write("No AOI dataset uploaded yet.")
+        st.write(
+            "If you are happy to proceed, select the column of the POI "
+            "dataset that defines the names of the locations: this "
+            "information will be used when plotting the isochrones. Also, "
+            "tick the box if you want to include population data in the "
+            "analysis. "
+            "Finally click on the button 'Ready to run?'."
+        )
+        poi_name_col = st.selectbox(
+            "Select the label field in your POI dataset", in_poi_flds
+        )
+        add_pop_data = st.checkbox(
+            "Add population data to the analysis",
+            on_change=set_stage,
+            args=(2,),
+        )
+        st.success("You are ready to create the isochrones.")
+        st.button("Ready to run?", on_click=set_stage, args=(3,))
 
-if st.button("Ready to run?"):
-    # prepare start points
-    data_prep_state = st.text("Preparing start points...")
-    start_points_dict, map_centre = prep_user_poi(poi_gdf, poi_name_col)
-    data_prep_state.text(f"Running on {len(start_points_dict)} start points.")
+# Run computations
+if st.session_state.stage > 2:
+    with st.spinner("Computing... Please wait..."):
+        # run analysis
+        isochrones = run_analysis(
+            poi_gdf=poi_gdf,
+            poi_name_col=poi_name_col,
+            aoi_gdf=aoi_gdf,
+            use_default_data=use_default_data,
+            add_pop_data=add_pop_data,
+            use_local_pop_data=use_local_pop_data,
+            verbose=verbose,
+            text_on_streamlit=True,
+        )
 
-    # run API calls
-    api_call_state = st.text(
-        "Starting API calls, this could take a few minutes..."
-    )
-    all_isos, api_time = get_isochrones(start_points_dict)
-    api_call_state.text(f"Completed API calls in {round(api_time, 2)} seconds")
+        # map results
+        map1 = plot_isochrones(
+            gdf=isochrones, poi_gdf=poi_gdf, poi_name_col=poi_name_col
+        )
+        folium_static_with_legend(map1, isochrones, "Travel time")
+        if add_pop_data:
+            fig = plot_population_summary(isochrones)
+            st.pyplot(fig)
+        st.success("Computation complete")
 
-    # dissolve isochrones
-    diss_isos_state = st.text("Dissolving isochrones...")
-    diss_isoc, diss_time = dissolve_iso(all_isos)
-    diss_isos_state.text(
-        f"Completed dissolve in {round(diss_time, 2)} seconds"
-    )
-
-    # get diffs (i.e. remove overlaps)
-    diff_isos_state = st.text("Removing overlapping isochrones...")
-    diff_isoc, diff_time = difference_iso(diss_isoc)
-    diff_isos_state.text(
-        f"Completed overlap removal in {round(diff_time, 2)} seconds"
-    )
-
-    # fill to aoi area
-    fill_aoi_state = st.text("Filling AOI areas outside isochrones...")
-    filled_to_aoi, fill_time = fill_aoi(diff_isoc, aoi_gdf)
-    fill_aoi_state.text(f"Filled AOI area in {round(fill_time, 2)} seconds")
-    mapable = "Yes"
-
-    # save geopackage of final output
-    save_output_state = st.text("saving output to gpkg...")
-    # filled_to_aoi.to_file(
-    #     os.path.join(final_output_folder, output_gpkg), driver="GPKG"
-    #     )
-    # save_output_state.text(f'Saved {output_gpkg} to {final_output_folder}.')
-
-    # map results
-    map1 = folium.Map(
-        tiles="CartoDB Positron", location=(map_centre), zoom_start=7
-    )
-    # add start points to map
-    for name, start_pt in start_points_dict.items():
-        # reverse coords due to folium lat/lon syntax
-        folium.map.Marker(
-            list(reversed(start_pt["location"])),
-            icon=folium.Icon(
-                color="blue",
-                icon_color="#cc0000",
-                icon="home",
-                prefix="fa",
-            ),
-            popup=name,
-        ).add_to(map1)
-    # TODO: need to make this robust to handle different user input parameters;
-    interval_to_colour = {
-        "0 - 900": "#1a9641",
-        "900 - 1800": "#a6d96a",
-        "1800 - 2700": "#fdae61",
-        "2700 - 3600": "#d7191c",
-        "> 3600": "#68507b",
-    }
-
-    def style_function(feature):
-        """Add docstrings here."""
-        return {
-            "fillopacity": 1,
-            "weight": 1,
-            "color": interval_to_colour[feature["properties"]["interval"]],
-        }
-
-    # TODO: add popups for isochrones
-    # TODO: add layer names to each geojson based on interval
-    # add processed isochrones
-    for i in range(len(filled_to_aoi)):
-        geo_j = filled_to_aoi.iloc[[i]].to_json()
-        geo_j = folium.GeoJson(data=geo_j, style_function=style_function)
-        geo_j.add_to(map1)
-    folium.LayerControl().add_to(map1)
-
-    folium_static(map1)
+    st.button("Reset", on_click=set_stage, args=(0,))
