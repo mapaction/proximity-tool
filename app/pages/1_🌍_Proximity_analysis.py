@@ -14,6 +14,7 @@ from src.utils_plotting import (
     plot_isochrones,
     plot_population_summary,
     draw_aoi,
+    create_input_map,
 )
 from src.utils_proximity import (
     poi_v_aoi,
@@ -92,7 +93,7 @@ if st.session_state.stage > 0:
         )
         # Draw own AOI
         with st.expander("Or want to draw your AOI on the map below?", expanded=True):
-            map2 = draw_aoi()
+            map2 = draw_aoi(poi=upload_poi_file)
             output = st_folium(map2, width='100%', height=600)
         # Check if AOI drawn
         if "all_drawings" in output:
@@ -102,7 +103,7 @@ if st.session_state.stage > 0:
         else:
             coords = output["all_drawings"][-1]["geometry"]["coordinates"][0]
             st.write("AOI drawn successfully!")
-            upload_aoi_file = coords
+            st.write(coords)
     st.button("Check input data?", on_click=set_stage, args=(2,))
 
 # Check input data

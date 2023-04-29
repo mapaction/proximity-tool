@@ -252,11 +252,15 @@ def plot_isochrones(
 
     return m
 
-def draw_aoi():
-    # Create a map centered on a specific location
-    map_center = [0, 0]  # World coordinates
-    map_zoom = 2
+def draw_aoi(poi):
+    # convert poi input to geodataframe
+    gdf = gpd.read_file(poi)
+    geojson_data = gdf.to_json()
+    # Create a map centered on input points
+    map_zoom = 8
+    map_center = [gdf.geometry.centroid.y.mean(), gdf.geometry.centroid.x.mean()]
     my_map = folium.Map(location=map_center, zoom_start=map_zoom)
+    folium.GeoJson(geojson_data).add_to(my_map)
     # Add a satellite basemap layer to the map
     basemap_satellite_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     basemap_satellite_attribution = "Esri"
@@ -292,6 +296,7 @@ def draw_aoi():
                     "circle": True,
                     "marker": False,
                     "circlemarker": False,}).add_to(my_map)
+    Geocoder(add_marker=False).add_to(my_map)
     return my_map
 
 def add_pois_to_map(
