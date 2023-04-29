@@ -1,6 +1,9 @@
 """Proximity analysis page for Streamlit app."""
 import streamlit as st
 from src.config_parameters import params
+from streamlit_folium import st_folium
+import folium
+from folium.plugins import Draw, Geocoder, MiniMap
 from src.utils import (
     add_about,
     add_logo,
@@ -11,6 +14,7 @@ from src.utils_plotting import (
     folium_static_with_legend,
     plot_isochrones,
     plot_population_summary,
+    draw_aoi,
 )
 from src.utils_proximity import (
     poi_v_aoi,
@@ -82,11 +86,14 @@ if st.session_state.stage > 0:
     ):
         # Create file uploader object for AOI
         upload_aoi_file = st.file_uploader(
-            "Upload a zipped shapefile delineating your Area of Interest",
+            "Upload a zipped shapefile delineating your Area of Interest or Draw your AOI on the map below",
             type=["zip"],
             on_change=set_stage,
             args=(1,),
         )
+        with st.expander("Or want to draw your AOI on the map below?", expanded=True):
+            map2 = draw_aoi()
+            output = st_folium(map2, width=800, height=600)
     st.button("Check input data?", on_click=set_stage, args=(2,))
 
 # Check inpu data

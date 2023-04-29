@@ -36,8 +36,8 @@ def folium_static_with_legend(
     gdf: gpd.GeoDataFrame,
     legend_title: str,
     cmap_name: str = "viridis",
-    width: int = 700,
-    height: int = 500,
+    width: int = 1800,
+    height: int = 1000,
 ) -> None:
     """
     Create a HTML representation of a Folium map with a categorical legend.
@@ -239,7 +239,7 @@ def plot_isochrones(
 
     # restrict maps to boundaries geodataframe
     bounds = gdf.total_bounds
-    m.fit_bounds([bounds[:2].tolist()[::-1], bounds[2:].tolist()[::-1]])
+    # m.fit_bounds([bounds[:2].tolist()[::-1], bounds[2:].tolist()[::-1]])
 
     # add legend
     if add_legend:
@@ -252,6 +252,41 @@ def plot_isochrones(
 
     return m
 
+def draw_aoi():
+    # Create a map centered on a specific location
+    map_center = [0, 0]  # World coordinates
+    map_zoom = 2
+    my_map = folium.Map(location=map_center, zoom_start=map_zoom)
+    # Add a satellite basemap layer to the map
+    basemap_satellite_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    basemap_satellite_attribution = "Esri"
+    basemap_satellite_name = "ESRI Satellite"
+    basemap_satellite_layer = folium.TileLayer(
+        tiles=basemap_satellite_url,
+        attr=basemap_satellite_attribution,
+        name=basemap_satellite_name,
+        overlay=True,
+        control=True
+    )
+    basemap_satellite_layer.add_to(my_map)
+    # Add a default basemap layer to the map
+    basemap_default_url = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    basemap_default_attribution = "OpenStreetMap contributors"
+    basemap_default_name = "OpenStreetMap"
+    basemap_default_layer = folium.TileLayer(
+        tiles=basemap_default_url,
+        attr=basemap_default_attribution,
+        name=basemap_default_name,
+        overlay=True,
+        control=True
+    )
+    basemap_default_layer.add_to(my_map)
+    
+    # Add a LayerControl to the map to allow the user to toggle between the basemaps
+    folium.LayerControl().add_to(my_map)
+    # Add draw function to the map
+    Draw(export=True).add_to(my_map)
+    return my_map
 
 def add_pois_to_map(
     m: folium.Map, poi_gdf: gpd.GeoDataFrame, poi_name_col: str
