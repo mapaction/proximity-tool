@@ -2,7 +2,6 @@
 import streamlit as st
 from src.config_parameters import params
 from streamlit_folium import st_folium
-import folium
 from folium.plugins import Draw, Geocoder, MiniMap
 from src.utils import (
     add_about,

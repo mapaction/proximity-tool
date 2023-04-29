@@ -261,26 +261,26 @@ def draw_aoi():
     basemap_satellite_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     basemap_satellite_attribution = "Esri"
     basemap_satellite_name = "ESRI Satellite"
-    basemap_satellite_layer = folium.TileLayer(
+    basemap_satellite_layer1 = folium.TileLayer(
         tiles=basemap_satellite_url,
         attr=basemap_satellite_attribution,
         name=basemap_satellite_name,
-        overlay=True,
+        overlay=False,
         control=True
     )
-    basemap_satellite_layer.add_to(my_map)
-    # Add a default basemap layer to the map
-    basemap_default_url = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-    basemap_default_attribution = "OpenStreetMap contributors"
-    basemap_default_name = "OpenStreetMap"
-    basemap_default_layer = folium.TileLayer(
-        tiles=basemap_default_url,
-        attr=basemap_default_attribution,
-        name=basemap_default_name,
-        overlay=True,
+    basemap_satellite_layer1.add_to(my_map)
+    # Add a satellite basemap layer with labels to the map
+    basemap_satellite_url = "https://a.tile.opentopomap.org/{z}/{x}/{y}.png"
+    basemap_satellite_name = "OpenTopoMap"
+    basemap_satellite_attribution = "Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap"
+    basemap_satellite_layer2 = folium.TileLayer(
+        tiles=basemap_satellite_url,
+        name=basemap_satellite_name,
+        attr=basemap_satellite_attribution,
+        overlay=False,
         control=True
     )
-    basemap_default_layer.add_to(my_map)
+    basemap_satellite_layer2.add_to(my_map)
     
     # Add a LayerControl to the map to allow the user to toggle between the basemaps
     folium.LayerControl().add_to(my_map)
