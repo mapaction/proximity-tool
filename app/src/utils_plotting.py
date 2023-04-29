@@ -285,7 +285,13 @@ def draw_aoi():
     # Add a LayerControl to the map to allow the user to toggle between the basemaps
     folium.LayerControl().add_to(my_map)
     # Add draw function to the map
-    Draw(export=True).add_to(my_map)
+    Draw(export=False, draw_options={
+                    "circle": False,
+                    "polyline": False,
+                    "polygon": True,
+                    "circle": True,
+                    "marker": False,
+                    "circlemarker": False,}).add_to(my_map)
     return my_map
 
 def add_pois_to_map(

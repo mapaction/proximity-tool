@@ -90,12 +90,22 @@ if st.session_state.stage > 0:
             on_change=set_stage,
             args=(1,),
         )
+        # Draw own AOI
         with st.expander("Or want to draw your AOI on the map below?", expanded=True):
             map2 = draw_aoi()
-            output = st_folium(map2, width=800, height=600)
+            output = st_folium(map2, width='100%', height=600)
+        # Check if AOI drawn
+        if "all_drawings" in output:
+            check_drawing = (output["all_drawings"] != [] and output["all_drawings"] is not None)
+        if not check_drawing:
+            st.write("No AOI drawn yet.")
+        else:
+            coords = output["all_drawings"][-1]["geometry"]["coordinates"][0]
+            st.write("AOI drawn successfully!")
+            upload_aoi_file = coords
     st.button("Check input data?", on_click=set_stage, args=(2,))
 
-# Check inpu data
+# Check input data
 if st.session_state.stage > 1:
     try:
         poi_gdf, in_poi_flds, valid_geom = process_poi_data(upload_poi_file)
